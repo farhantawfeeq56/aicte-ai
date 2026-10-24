@@ -3,9 +3,10 @@
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import type { CaseRecord } from "./api/demo/route";
 
-type Dashboard = "regional" | "bureau" | "committee" | "authority" | "officer";
+type Dashboard = "institution" | "regional" | "bureau" | "committee" | "authority" | "officer";
 type State = { cases: CaseRecord[]; activity: { id: string; text: string; time: string }[] };
 const workspaces: Record<Dashboard, { label: string; category: string; identity: string; role: string; initials: string; mark: string }> = {
+  institution: { label: "Institution portal", category: "COLLEGE ACCOUNT", identity: "Northfield Institute", role: "Institution administrator", initials: "NI", mark: "N" },
   regional: { label: "Regional Officer", category: "REGIONAL OVERSIGHT", identity: "Regional Office", role: "Regional Officer", initials: "RO", mark: "R" },
   bureau: { label: "Regulation / Bureau", category: "REGULATION & BUREAU", identity: "Bureau Operations", role: "Regulation/Bureau Officer", initials: "RB", mark: "B" },
   committee: { label: "Scrutiny / EVC Committee", category: "SCRUTINY & FIELD REVIEW", identity: "Review Committee", role: "Scrutiny/EVC Committee Member", initials: "SC", mark: "C" },
@@ -13,14 +14,16 @@ const workspaces: Record<Dashboard, { label: string; category: string; identity:
   officer: { label: "Assigned Officer", category: "OFFICER WORK QUEUE", identity: "Assigned Officer", role: "Application Officer", initials: "AO", mark: "O" },
 };
 const sideLinks: Record<Dashboard, { label: string; icon: string; anchor: string }[]> = {
+  institution: [{ label: "Overview", icon: "▦", anchor: "page-top" }, { label: "Applications", icon: "▤", anchor: "application-list" }, { label: "Documents", icon: "▧", anchor: "document-list" }, { label: "Programs & profile", icon: "◫", anchor: "page-top" }],
   regional: [{ label: "Regional case overview", icon: "▦", anchor: "page-top" }, { label: "Assigned applications", icon: "▤", anchor: "assigned-queue" }, { label: "Escalations", icon: "◷", anchor: "officer-activity" }],
   bureau: [{ label: "Case overview", icon: "▦", anchor: "page-top" }, { label: "Route configuration", icon: "⇢", anchor: "workflow-heading" }, { label: "Stage history", icon: "☷", anchor: "stage-flow" }],
   committee: [{ label: "Scrutiny queue", icon: "▤", anchor: "committee-scrutiny-queue" }, { label: "EVC inspection queue", icon: "⌖", anchor: "evc-queue" }, { label: "Visit schedule", icon: "▦", anchor: "visit-schedule" }],
   authority: [{ label: "SHC / SAC hearings", icon: "◷", anchor: "authority-queue" }, { label: "Decision queue", icon: "✓", anchor: "authority-queue" }, { label: "Decision workflow", icon: "☷", anchor: "authority-queue" }],
   officer: [{ label: "My assigned applications", icon: "▤", anchor: "officer-queue" }],
 };
-const tour: Dashboard[] = ["regional", "bureau", "committee", "authority"];
+const tour: Dashboard[] = ["institution", "regional", "bureau", "committee", "authority"];
 const titles: Record<Dashboard, [string, string]> = {
+  institution: ["Institution dashboard", "Manage applications, documents and approval status."],
   regional: ["Regional Officer dashboard", "Monitor regional applications, pendency and escalations."],
   bureau: ["Regulation / Bureau workspace", "Review application routes and coordinate regulatory workflow stages."],
   committee: ["Scrutiny / EVC Committee workspace", "Review assigned applications, coordinate inspections and record findings."],
@@ -28,6 +31,7 @@ const titles: Record<Dashboard, [string, string]> = {
   officer: ["Assigned Officer work queue", "Review applications assigned to you and their current stage."],
 };
 const suggestions: Record<Dashboard, string[]> = {
+  institution: ["What is the status of my application?", "Which documents have I uploaded?", "What should I do next?"],
   regional: ["Show regional pending cases", "Which applications are overdue?", "Where are escalations needed?"],
   bureau: ["Explain this application’s route", "Who owns the current stage?", "What happens after this stage?"],
   committee: ["Show pending scrutiny", "Which EVC visits need scheduling?", "Are any reports overdue?", "Which cases need action today?"],
@@ -50,12 +54,12 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
 }
 
 export default function Home() {
-  const [dashboard, setDashboard] = useState<Dashboard>("regional");
+  const [dashboard, setDashboard] = useState<Dashboard>("institution");
   const [data, setData] = useState<State | null>(null);
   const [selectedId, setSelectedId] = useState("AP-2025-0148");
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState(sideLinks.regional[0].label);
+  const [activeSection, setActiveSection] = useState(sideLinks.institution[0].label);
   const [tourStep, setTourStep] = useState(-1);
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,6 +70,8 @@ export default function Home() {
   const [officerName, setOfficerName] = useState("Meera Kulkarni");
   const [scheduleDates, setScheduleDates] = useState<Record<string, string>>({});
   const selected = data?.cases.find((item) => item.id === selectedId) ?? data?.cases[0];
+  const institutionCases = data?.cases.filter((item) => item.college === "Northfield Institute of Technology") ?? [];
+  const institutionSelected = institutionCases.find((item) => item.id === selectedId) ?? institutionCases[0];
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/demo", { cache: "no-store" });
@@ -75,7 +81,7 @@ export default function Home() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("workspace") === "committee") startTransition(() => setDashboard("committee"));
-    if (params.get("tour") === "evc-checklist") startTransition(() => setTourStep(2));
+    if (params.get("tour") === "evc-checklist") startTransition(() => setTourStep(3));
     const controller = new AbortController();
     fetch("/api/demo", { cache: "no-store", signal: controller.signal })
       .then((response) => { if (!response.ok) throw new Error("Demo service is unavailable. Refresh to reconnect."); return response.json() as Promise<State>; })
@@ -96,6 +102,11 @@ export default function Home() {
     } catch (e) { setError(e instanceof Error ? e.message : "Could not complete this action."); return false; }
     finally { setBusy(false); }
   }
+  async function upload(file?: File, mode: "application" | "supporting" = "application") {
+    if (!file) return;
+    const success = await mutate("upload", { name: file.name, size: file.size, mode, id: institutionSelected?.id });
+    if (success && mode === "application") setSelectedId("AP-2025-0152");
+  }
   function showDashboard(next: Dashboard) { setDashboard(next); setActiveSection(sideLinks[next][0].label); setReply(""); setNotificationOpen(false); }
   function selectWorkspace(next: Dashboard) { showDashboard(next); setRouteChoice(selected?.route ?? "B"); setTourStep(-1); setSwitcherOpen(false); }
   function openCase(id: string, target: Dashboard) { const record = data?.cases.find((item) => item.id === id); if (record) setRouteChoice(record.route); setSelectedId(id); showDashboard(target); }
@@ -104,10 +115,11 @@ export default function Home() {
     if (tourStep >= tour.length - 1) { setTourStep(-1); return; }
     const next = tourStep + 1; setTourStep(next); showDashboard(tour[next]);
   }
-  function startTour() { setTourStep(0); showDashboard("regional"); }
+  function startTour() { setTourStep(0); showDashboard("institution"); }
   const chooseSuggestion = (text: string) => {
     const c = selected;
     const responses: Record<Dashboard, string> = {
+      institution: `Application ${institutionSelected?.id} for ${institutionSelected?.college} is ${institutionSelected?.status.toLowerCase()} at “${institutionSelected?.stage}”. ${institutionSelected?.files.length ?? 0} supporting documents are on file. Monitor the application for the next review stage.`,
       regional: `There are ${data?.cases.length ?? 0} fictional applications in the regional overview. ${data?.cases.filter((x) => x.status === "Overdue").length ?? 0} are overdue. Review the assigned queue and recent escalation history; statutory decisions remain with the authorized authority.`,
       bureau: `Route ${c?.route} is selected for ${c?.college}. Current stage: ${c?.stage}. Responsible role: ${c?.stage.includes("EVC") || c?.stage.includes("Inspection") ? "Scrutiny/EVC Committee Member" : c?.stage.includes("decision") ? "Decision Authority" : "Regulation/Bureau Officer"}. SAC/SHC is conditional and is not part of every route. This demo does not make statutory decisions.`,
       committee: `Review scrutiny-stage cases and EVC visits in the committee workspace. The checklist records inspection findings and any SAC/SHC recommendation; the authorized decision-maker confirms the applicable process.`,
@@ -128,8 +140,8 @@ export default function Home() {
 
   return <div className={`app-shell role-${dashboard}`}>
     <aside className={`sidebar sidebar-${dashboard}`}>
-      <a className="brand" href="#home" onClick={(e) => { e.preventDefault(); showDashboard("regional"); }}><span className="brand-mark">{workspaces[dashboard].mark}</span><span>AICTE<span className="brand-light">.flow</span><small>{workspaces[dashboard].category}</small></span></a>
-      <div className="workspace-label">{workspaces[dashboard].category}</div>
+      <a className="brand" href="#home" onClick={(e) => { e.preventDefault(); showDashboard("institution"); }}><span className="brand-mark">{workspaces[dashboard].mark}</span><span>{dashboard === "institution" ? <>Northfield<span className="brand-light">.edu</span></> : <>AICTE<span className="brand-light">.flow</span></>}<small>{workspaces[dashboard].category}</small></span></a>
+      <div className="workspace-label">{dashboard === "institution" ? "YOUR INSTITUTION" : workspaces[dashboard].category}</div>
       <nav className="main-nav" aria-label={`${workspaces[dashboard].label} navigation`}>{sideLinks[dashboard].map((item, index) => <a key={item.label} href={`#${item.anchor}`} className={`nav-item ${activeSection === item.label ? "active" : ""}`} onClick={(e) => { e.preventDefault(); setActiveSection(item.label); document.getElementById(item.anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><span className="nav-icon">{item.icon}</span>{item.label}{dashboard === "regional" && index === 0 && <span className="nav-count">2</span>}{dashboard === "committee" && index === 0 && <span className="nav-count">{data.cases.filter((c) => c.stage.toLowerCase().includes("scrutiny")).length}</span>}</a>)}</nav>
       <div className="sidebar-bottom"><div className="demo-flag"><span className="pulse-dot"/> Demo workspace <span>FICTIONAL</span></div><button className="replay-link" onClick={startTour}>↗ &nbsp; Replay product tour</button><div className="profile"><div className="avatar">{workspaces[dashboard].initials}</div><div><b>{workspaces[dashboard].identity}</b><small>{workspaces[dashboard].role}</small></div><span className="profile-menu">···</span></div></div>
     </aside>
@@ -138,11 +150,18 @@ export default function Home() {
         {notificationOpen && <div className="notification-popover"><div className="popover-title"><div><b>Notifications</b><small>{unread} reminders · fictional demo</small></div><button className="icon-button small-close" aria-label="Close notifications" onClick={() => setNotificationOpen(false)}><Icon name="close" size={16}/></button></div>{notifications.map((n) => <button key={n.title} className="notification-item" onClick={() => openCase(n.caseId, n.title.includes("Authority") || n.title.includes("SHC") ? "authority" : n.title.includes("Inspection") || n.title.includes("EVC") ? "committee" : "regional")}><span className={`notice-dot ${n.tone}`}/><span><b>{n.title}</b><small>{n.detail}</small></span><Icon name="arrow" size={15}/></button>)}<div className="popover-foot">Reminders and escalations reflect the demo case records.</div></div>}
       </header>
       <main className="page-content" id="page-top">
-        <div className="page-heading"><div><div className="heading-meta"><span className="status-dot green"/> AICTE approval workflow <span className="meta-sep">·</span> Last synced just now</div><h1>{titles[dashboard][0]}</h1><p>{titles[dashboard][1]}</p></div><div className="heading-buttons"><button className="button-secondary" onClick={startTour}><span>▷</span> Start product tour</button></div></div>
+        <div className="page-heading"><div><div className="heading-meta"><span className="status-dot green"/> AICTE approval workflow <span className="meta-sep">·</span> Last synced just now</div><h1>{titles[dashboard][0]}</h1><p>{titles[dashboard][1]}</p></div><div className="heading-buttons"><button className="button-secondary" onClick={startTour}><span>▷</span> Start product tour</button>{dashboard === "institution" && <label className="button-primary upload-cta"><Icon name="upload" size={16}/> Upload application<input type="file" accept=".pdf,.doc,.docx,.xlsx,.png,.jpg" onChange={(e) => upload(e.target.files?.[0])}/></label>}</div></div>
         {(tourStep >= 0 || error || flash) && <div className={`message-banner ${error ? "error-banner" : tourStep >= 0 ? "tour-banner" : "success-banner"}`}>
-          {error ? <><b>Action needs attention</b><span>{error}</span><button onClick={() => setError("")} aria-label="Dismiss error"><Icon name="close" size={16}/></button></> : tourStep >= 0 ? <><span className="tour-step-count">0{tourStep + 1} <i>/ 04</i></span><div><b>{["Regional case oversight", "Regulation and routing", "Scrutiny and EVC review", "SHC / SAC and decision authority"][tourStep]}</b><span>{["Monitor regional pendency, assigned applications and escalations.", "Review configured routes; SHC/SAC remains conditional.", "Review scrutiny workload, schedule required EVC visits and record findings.", "Review applicable hearings and decision-stage cases. The demo does not issue statutory decisions."][tourStep]}</span></div>{dashboard === "committee" && <a className="tour-checklist-link" href={`/checklist?case=${encodeURIComponent(selectedId)}&tour=evc-checklist`}>Open visit checklist <Icon name="arrow" size={13}/></a>}<button className="tour-next" onClick={advanceTour}>{tourStep === 3 ? "Finish tour" : "Next dashboard"} <Icon name="arrow" size={14}/></button><button className="tour-dismiss" onClick={() => setTourStep(-1)}>Dismiss</button></> : <><Icon name="check" size={16}/><span>{flash}</span><button onClick={() => setFlash("")} aria-label="Dismiss message"><Icon name="close" size={16}/></button></>}
+          {error ? <><b>Action needs attention</b><span>{error}</span><button onClick={() => setError("")} aria-label="Dismiss error"><Icon name="close" size={16}/></button></> : tourStep >= 0 ? <><span className="tour-step-count">0{tourStep + 1} <i>/ 05</i></span><div><b>{["Your institution workspace", "Regional case oversight", "Regulation and routing", "Scrutiny and EVC review", "SHC / SAC and decision authority"][tourStep]}</b><span>{["Upload an application and review your submitted documents.", "Monitor regional pendency, assigned applications and escalations.", "Review configured routes; SHC/SAC remains conditional.", "Review scrutiny workload, schedule required EVC visits and record findings.", "Review applicable hearings and decision-stage cases. The demo does not issue statutory decisions."][tourStep]}</span></div>{dashboard === "committee" && <a className="tour-checklist-link" href={`/checklist?case=${encodeURIComponent(selectedId)}&tour=evc-checklist`}>Open visit checklist <Icon name="arrow" size={13}/></a>}<button className="tour-next" onClick={advanceTour}>{tourStep === 4 ? "Finish tour" : "Next dashboard"} <Icon name="arrow" size={14}/></button><button className="tour-dismiss" onClick={() => setTourStep(-1)}>Dismiss</button></> : <><Icon name="check" size={16}/><span>{flash}</span><button onClick={() => setFlash("")} aria-label="Dismiss message"><Icon name="close" size={16}/></button></>}
         </div>}
         <div className="content-grid"><section className="primary-column">
+          {dashboard === "institution" && <>
+            <div className="metric-row"><Metric label="Active applications" value={String(institutionCases.length).padStart(2, "0")} note="For Northfield Institute" icon="▤"/><Metric label="Action required" value={String(institutionCases.filter((c) => c.status === "Overdue").length).padStart(2, "0")} note="Review pending items" icon="!" alert/><Metric label="Approval validity" value="2025–26" note="Renewal window opens soon" icon="◷"/></div>
+            <div className="section-title" id="application-list"><div><h2>Applications</h2><span>Applications submitted by your institution</span></div><button className="text-action" onClick={() => showDashboard("bureau")}>View workflow <Icon name="arrow" size={14}/></button></div>
+            <CaseTable cases={institutionCases} filter={filter} selectedId={institutionSelected?.id ?? selectedId} onSelect={(c) => { setSelectedId(c.id); setRouteChoice(c.route); }}/>
+            <div className="section-title compact-title" id="document-list"><div><h2>Supporting documents</h2><span>{institutionSelected?.college ?? "Northfield Institute of Technology"} · {institutionSelected?.id ?? "No application selected"}</span></div><label className="text-action document-upload"><Icon name="upload" size={15}/> Add document<input type="file" onChange={(e) => upload(e.target.files?.[0], "supporting")}/></label></div>
+            <div className="document-list">{institutionSelected?.files.map((file) => <div className="document-row" key={file.name}><div className="file-icon"><Icon name="file" size={17}/></div><div className="document-name"><b>{file.name}</b><small>{file.kind} · {(file.size / 1000000).toFixed(1)} MB</small></div><span className="status-tag status-green"><Icon name="check" size={12}/> Received</span></div>)}{!institutionSelected?.files.length && <div className="empty-state">No supporting documents yet. Upload a file to add one.</div>}</div>
+          </>}
           {dashboard === "bureau" && selected && <>
             <div className="route-case-strip"><div className="institution-avatar">{selected.college.charAt(0)}</div><div><b>{selected.college}</b><small>{selected.id} <span>·</span> {selected.type}</small></div><Status status={selected.status}/></div>
             <div className="workflow-card" id="workflow-heading"><div className="workflow-heading"><div><h2>Configure workflow</h2><p>Select a route for this application. The prescribed process remains case-specific.</p></div><span className="config-label">CONFIGURABLE</span></div><div className="route-options">{(["A", "B", "C"] as const).map((r) => <button key={r} className={`route-option ${routeChoice === r ? "chosen" : ""}`} onClick={() => setRouteChoice(r)}><span className="route-radio"/><span><b>Route {r}</b><small>{r === "A" ? "Scrutiny" : r === "B" ? "Scrutiny + EVC" : "EVC route"}</small></span><span className="route-option-end">{r === selected.route ? "CURRENT" : ""}</span></button>)}</div><button disabled={busy || routeChoice === selected.route} className="button-primary save-route" onClick={() => mutate("route", { id: selected.id, route: routeChoice })}>Apply route <Icon name="arrow" size={15}/></button></div>
@@ -181,12 +200,12 @@ export default function Home() {
             <div className="section-title compact-title"><div><h2>Case workflow</h2><span>Review stage history before taking an authorized action.</span></div><button className="text-action" onClick={() => showDashboard("bureau")}>Open workflow <Icon name="arrow" size={14}/></button></div>
           </>}
         </section>
-        <aside className="assistant-panel"><div className="assistant-heading"><div className="assistant-orb">✳</div><div><b>Workflow assistant</b><span><i/> Demo guide · suggestions only</span></div><button className="assistant-more" aria-label="Assistant information">···</button></div><div className="assistant-context">{dashboard === "regional" ? "REGIONAL OVERSIGHT" : dashboard === "bureau" ? "REGULATION & ROUTING" : dashboard === "committee" ? "SCRUTINY & EVC REVIEW" : "HEARINGS & DECISIONS"}</div><div className="chat-intro"><div className="assistant-avatar">✳</div><p>{dashboard === "regional" ? "I can summarize regional pendency, assigned cases and escalations." : dashboard === "bureau" ? "I can explain the selected route, current stage and the role responsible for the next action." : dashboard === "committee" ? "I can surface pending scrutiny, upcoming visits, reports and inspection alerts." : "I can summarize cases awaiting applicable SHC/SAC hearings or a decision."}</p></div><div className="suggestion-label">SUGGESTED QUESTIONS <span>Click to explore</span></div><div className="suggestion-list">{suggestions[dashboard].map((text) => <button key={text} className="suggestion-card" onClick={() => chooseSuggestion(text)}>{text}<span>↗</span></button>)}</div>{reply && <div className="chat-response"><div><span className="assistant-avatar mini">✳</span><span>WORKFLOW ASSISTANT <small>Just now</small></span></div><p>{reply}</p><button className="response-action" onClick={() => dashboard === "bureau" ? document.getElementById("workflow-heading")?.scrollIntoView({ behavior: "smooth" }) : showDashboard("bureau")}>View related case <Icon name="arrow" size={13}/></button></div>}<div className="assistant-foot"><span className="lock-icon">◈</span> Fictional demo records · Not an official AICTE service</div></aside>
+        <aside className="assistant-panel"><div className="assistant-heading"><div className="assistant-orb">✳</div><div><b>Workflow assistant</b><span><i/> Demo guide · suggestions only</span></div><button className="assistant-more" aria-label="Assistant information">···</button></div><div className="assistant-context">{dashboard === "institution" ? "INSTITUTION SUPPORT" : dashboard === "regional" ? "REGIONAL OVERSIGHT" : dashboard === "bureau" ? "REGULATION & ROUTING" : dashboard === "committee" ? "SCRUTINY & EVC REVIEW" : dashboard === "authority" ? "HEARINGS & DECISIONS" : "OFFICER QUEUE"}</div><div className="chat-intro"><div className="assistant-avatar">✳</div><p>{dashboard === "institution" ? "I can help you understand your application status, submitted documents and next steps." : dashboard === "regional" ? "I can summarize regional pendency, assigned cases and escalations." : dashboard === "bureau" ? "I can explain the selected route, current stage and the role responsible for the next action." : dashboard === "committee" ? "I can surface pending scrutiny, upcoming visits, reports and inspection alerts." : dashboard === "authority" ? "I can summarize cases awaiting applicable SHC/SAC hearings or a decision." : `You have ${data.cases.filter((item) => item.officer === officerName).length} applications assigned to ${officerName}.`}</p></div><div className="suggestion-label">SUGGESTED QUESTIONS <span>Click to explore</span></div><div className="suggestion-list">{suggestions[dashboard].map((text) => <button key={text} className="suggestion-card" onClick={() => chooseSuggestion(text)}>{text}<span>↗</span></button>)}</div>{reply && <div className="chat-response"><div><span className="assistant-avatar mini">✳</span><span>WORKFLOW ASSISTANT <small>Just now</small></span></div><p>{reply}</p><button className="response-action" onClick={() => dashboard === "bureau" ? document.getElementById("workflow-heading")?.scrollIntoView({ behavior: "smooth" }) : showDashboard("bureau")}>View related case <Icon name="arrow" size={13}/></button></div>}<div className="assistant-foot"><span className="lock-icon">◈</span> Fictional demo records · Not an official AICTE service</div></aside>
       </div>
       <footer className="page-footer"><span>AICTE Approval Workflow <i>·</i> Demonstration only</span><span>Fictional institutions, records &amp; simulated deadlines</span></footer>
     </main>
     {tourStep >= 0 && <div className="tour-backdrop" aria-hidden="true"/>}
-    {tourStep >= 0 && <div className="tour-mobile-card"><span>PRODUCT TOUR · STEP {tourStep + 1}/4</span><b>{titles[dashboard][0]}</b><p>{["Monitor regional pendency, assigned applications and escalations.", "Review configured routes; SHC/SAC remains conditional.", "Review scrutiny work and coordinate required EVC visits.", "Review applicable hearings and decision-stage cases; the demo does not issue statutory decisions."][tourStep]}</p>{dashboard === "committee" && <a className="tour-mobile-checklist" href={`/checklist?case=${encodeURIComponent(selectedId)}&tour=evc-checklist`}>Open visit checklist <Icon name="arrow" size={14}/></a>}<button className="button-primary" onClick={advanceTour}>{tourStep === 3 ? "Finish tour" : "Continue"} <Icon name="arrow" size={14}/></button><button className="tour-card-close" onClick={() => setTourStep(-1)}>Dismiss</button></div>}
+    {tourStep >= 0 && <div className="tour-mobile-card"><span>PRODUCT TOUR · STEP {tourStep + 1}/5</span><b>{titles[dashboard][0]}</b><p>{["Upload an application and review your submitted documents.", "Monitor regional pendency, assigned applications and escalations.", "Review configured routes; SHC/SAC remains conditional.", "Review scrutiny work and coordinate required EVC visits.", "Review applicable hearings and decision-stage cases; the demo does not issue statutory decisions."][tourStep]}</p>{dashboard === "committee" && <a className="tour-mobile-checklist" href={`/checklist?case=${encodeURIComponent(selectedId)}&tour=evc-checklist`}>Open visit checklist <Icon name="arrow" size={14}/></a>}<button className="button-primary" onClick={advanceTour}>{tourStep === 4 ? "Finish tour" : "Continue"} <Icon name="arrow" size={14}/></button><button className="tour-card-close" onClick={() => setTourStep(-1)}>Dismiss</button></div>}
     </div>
   </div>;
 }
