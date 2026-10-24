@@ -1,4 +1,4 @@
-# Accredit.flow — AICTE Workflow Demo
+# AICTE AI — Workflow Demo
 
 An interactive, fictional demo of AICTE approval workflows with an institution portal and four role dashboards: Regional Officer, Regulation/Bureau Officer, Scrutiny/EVC Committee Member, and SHC/SAC/Decision Authority. It also includes an assigned-officer work queue.
 
