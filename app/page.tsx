@@ -71,6 +71,8 @@ export default function Home() {
   const [filter, setFilter] = useState("");
   const [routeChoice, setRouteChoice] = useState<CaseRecord["route"]>("B");
   const selected = data?.cases.find((item) => item.id === selectedId) ?? data?.cases[0];
+  const institutionCases = data?.cases.filter((item) => item.college === "Northfield Institute of Technology") ?? [];
+  const institutionSelected = institutionCases.find((item) => item.id === selectedId) ?? institutionCases[0];
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/demo", { cache: "no-store" });
@@ -103,7 +105,7 @@ export default function Home() {
   }
   async function upload(file?: File, mode: "application" | "supporting" = "application") {
     if (!file) return;
-    const success = await mutate("upload", { name: file.name, size: file.size, mode, id: selectedId });
+    const success = await mutate("upload", { name: file.name, size: file.size, mode, id: institutionSelected?.id });
     if (success && mode === "application") setSelectedId("AP-2025-0152");
   }
   function showDashboard(next: Dashboard) { setDashboard(next); setActiveSection(sideLinks[next][0].label); setReply(""); setNotificationOpen(false); }
@@ -154,11 +156,11 @@ export default function Home() {
         </div>}
         <div className="content-grid"><section className="primary-column">
           {dashboard === "institution" && <>
-            <div className="metric-row"><Metric label="Active applications" value={String(data.cases.length).padStart(2, "0")} note="Across fictional institutions" icon="▤"/><Metric label="Action required" value="02" note="1 document · 1 response" icon="!" alert/><Metric label="Approval validity" value="2025–26" note="Renewal window opens soon" icon="◷"/></div>
+            <div className="metric-row"><Metric label="Active applications" value={String(institutionCases.length).padStart(2, "0")} note="For Northfield Institute" icon="▤"/><Metric label="Action required" value="02" note="1 document · 1 response" icon="!" alert/><Metric label="Approval validity" value="2025–26" note="Renewal window opens soon" icon="◷"/></div>
             <div className="section-title" id="application-list"><div><h2>Applications</h2><span>Applications submitted by your institution</span></div><button className="text-action" onClick={() => showDashboard("routing")}>View workflow <Icon name="arrow" size={14}/></button></div>
-            <CaseTable cases={data.cases.slice(0, 3)} filter={filter} selectedId={selectedId} onSelect={(c) => { setSelectedId(c.id); setRouteChoice(c.route); }}/>
-            <div className="section-title compact-title"><div><h2>Supporting documents</h2><span>Northfield Institute · AP-2025-0148</span></div><label className="text-action document-upload"><Icon name="upload" size={15}/> Add document<input type="file" onChange={(e) => upload(e.target.files?.[0], "supporting")}/></label></div>
-            <div className={`document-list ${tourFocus("institution")}`} id="document-list">{selected?.files.map((file) => <div className="document-row" key={file.name}><div className="file-icon"><Icon name="file" size={17}/></div><div className="document-name"><b>{file.name}</b><small>{file.kind} · {(file.size / 1000000).toFixed(1)} MB</small></div><span className="status-tag status-green"><Icon name="check" size={12}/> Received</span><button className="more-button" aria-label={`More options for ${file.name}`}>···</button></div>)}{!selected?.files.length && <div className="empty-state">No supporting documents yet. Upload a file to add one.</div>}</div>
+            <CaseTable cases={institutionCases} filter={filter} selectedId={institutionSelected?.id ?? selectedId} onSelect={(c) => { setSelectedId(c.id); setRouteChoice(c.route); }}/>
+            <div className="section-title compact-title"><div><h2>Supporting documents</h2><span>{institutionSelected?.college ?? "Northfield Institute of Technology"} · {institutionSelected?.id ?? "No application selected"}</span></div><label className="text-action document-upload"><Icon name="upload" size={15}/> Add document<input type="file" onChange={(e) => upload(e.target.files?.[0], "supporting")}/></label></div>
+            <div className={`document-list ${tourFocus("institution")}`} id="document-list">{institutionSelected?.files.map((file) => <div className="document-row" key={file.name}><div className="file-icon"><Icon name="file" size={17}/></div><div className="document-name"><b>{file.name}</b><small>{file.kind} · {(file.size / 1000000).toFixed(1)} MB</small></div><span className="status-tag status-green"><Icon name="check" size={12}/> Received</span><button className="more-button" aria-label={`More options for ${file.name}`}>···</button></div>)}{!institutionSelected?.files.length && <div className="empty-state">No supporting documents yet. Upload a file to add one.</div>}</div>
           </>}
           {dashboard === "routing" && selected && <>
             <div className="route-case-strip"><div className="institution-avatar">{selected.college.charAt(0)}</div><div><b>{selected.college}</b><small>{selected.id} <span>·</span> {selected.type}</small></div><Status status={selected.status}/></div>
