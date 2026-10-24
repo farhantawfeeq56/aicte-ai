@@ -50,7 +50,7 @@ export default function ChecklistPage() {
   const allItems = useMemo(() => sections.flatMap((section) => section.items), []);
   const detail = caseDetails[caseId] ?? { institution: "EVC inspection visit", programme: "Programme under inspection" };
   const progress = Math.round((checked.length / allItems.length) * 100);
-  const evcHref = returnToTour ? "/?workspace=evc&tour=evc-checklist" : "/?workspace=evc";
+  const evcHref = returnToTour ? "/?workspace=committee&tour=evc-checklist" : "/?workspace=committee";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -88,9 +88,9 @@ export default function ChecklistPage() {
   }
 
   return <main className="visit-page">
-    <header className="visit-topbar"><Link className="visit-brand" href={evcHref}><span className="visit-brand-mark">F</span><span>Field<span className="visit-brand-light">.visit</span><small>EVC FIELD WORKSPACE</small></span></Link><Link className="visit-back" href={evcHref}>← <span>Back to inspection queue</span></Link></header>
+    <header className="visit-topbar"><Link className="visit-brand" href={evcHref}><span className="visit-brand-mark">F</span><span>AICTE<span className="visit-brand-light">.flow</span><small>SCRUTINY / EVC COMMITTEE</small></span></Link><Link className="visit-back" href={evcHref}>← <span>Back to inspection queue</span></Link></header>
     <div className="visit-content">
-      <div className="visit-breadcrumb"><Link href={evcHref}>EVC inspections</Link><span>/</span><span>Visit checklist</span></div>
+      <div className="visit-breadcrumb"><Link href={evcHref}>Scrutiny / EVC Committee</Link><span>/</span><span>Visit checklist</span></div>
       <section className="visit-heading"><div><div className="visit-kicker"><i/> FIELD VISIT · CHECKLIST</div><h1>Site inspection</h1><p>Use this checklist during the EVC visit. Record observations as you go.</p></div><div className="visit-case"><span>APPLICATION</span><b>{caseId}</b><small>{detail.programme}</small></div></section>
       <section className="visit-summary" aria-label="Visit details"><div className="visit-institution"><span className="visit-institution-mark">{detail.institution.charAt(0)}</span><div><small>INSTITUTION</small><b>{detail.institution}</b></div></div><label className="visit-date"><span>VISIT DATE</span><input type="date" value={visitDate} onChange={(event) => { setVisitDate(event.target.value); setSaved(false); }}/></label><div className="visit-progress"><div><span>Checklist progress</span><b>{checked.length} <small>/ {allItems.length}</small></b></div><div className="visit-progress-track"><i style={{ width: `${progress}%` }}/></div></div></section>
       <div className="visit-layout"><div className="visit-sections">{sections.map((section, index) => {

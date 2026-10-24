@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Accredit.flow · AICTE Workflow Demo",
-  description: "A fictional interactive demo of AICTE application routing and compliance workflows.",
+  description: "A fictional AICTE workflow demo with Regional Officer, Regulation/Bureau, Scrutiny/EVC Committee, and SHC/SAC/Decision Authority dashboards.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
