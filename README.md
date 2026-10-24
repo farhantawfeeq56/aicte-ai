@@ -15,10 +15,13 @@ Open [http://localhost:3000](http://localhost:3000). Use **Start product tour** 
 
 - All colleges, officers, application records, due dates, and notifications are fictional.
 - Uploads are simulated: the API records file names and sizes, not file contents.
+- Regional Officers can register applications and assign one of the demo officers; assigned cases appear in that officer's work queue.
+- Committee members can save EVC visit dates for eligible cases; saved dates appear in the scheduling overview.
 - Demo API state is held in memory and resets when the server restarts.
-- Route C demonstrates conditional SHC/SAC handling; it is not a mandatory stage for every application.
-- Regional, Bureau, Committee, and Authority dashboards are illustrative role views, not authenticated or permission-enforced accounts.
-- The demo does not issue statutory decisions. Those remain with the competent authority.
+- The simulated workflow is application submission → document/data validation → APH routing → route-specific scrutiny/EVC → conditional re-scrutiny, EVC, and SAC/SHC → competent-authority outcome → undertaking/conditions and compliance monitoring, with close or escalation.
+- Routes A, B, and C demonstrate Scrutiny, Scrutiny + EVC, and EVC respectively; SAC/SHC and other marked stages remain conditional.
+- Approval/rejection, compliance, closure, and escalation controls are illustrative only. The demo does not perform real validation or automated APH rule evaluation, and it does not issue statutory decisions.
+- Regional, Bureau, Committee, Authority, and Assigned Officer dashboards are illustrative role views, not authenticated or permission-enforced accounts.
 
 ## Checks
 
