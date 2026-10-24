@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import type { CaseRecord } from "./api/demo/route";
 
 type Dashboard = "institution" | "routing" | "officer" | "evc" | "compliance";
@@ -78,6 +78,7 @@ export default function Home() {
     setData(await response.json() as State);
   }, []);
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("workspace") === "evc") startTransition(() => setDashboard("evc"));
     const controller = new AbortController();
     fetch("/api/demo", { cache: "no-store", signal: controller.signal })
       .then((response) => { if (!response.ok) throw new Error("Demo service is unavailable. Refresh to reconnect."); return response.json() as Promise<State>; })
@@ -176,7 +177,7 @@ export default function Home() {
             <div className="metric-row"><Metric label="Inspection queue" value="02" note="2 committees assigned" icon="⌖"/><Metric label="Visits this week" value="01" note="Next · 24 Mar 2025" icon="◷"/><Metric label="Reports pending" value="01" note="Cedar Ridge · overdue" icon="!" alert/></div>
             <div className="evc-alert"><span className="alert-symbol">!</span><div><b>Inspection report requires attention</b><small>Cedar Ridge Technical Campus · AP-2025-0119 · due 21 Mar 2025</small></div><button onClick={() => openCase("AP-2025-0119", "routing")}>Open case <Icon name="arrow" size={14}/></button></div>
             <div className="section-title"><div><h2>EVC inspection queue</h2><span>Only applications requiring an external visit</span></div><span className="count-label">2 ACTIVE</span></div>
-            <div className={`evc-queue ${tourFocus("evc")}`} id="evc-queue">{data.cases.filter((c) => c.evc && (c.stage.toLowerCase().includes("evc") || c.stage.toLowerCase().includes("inspection"))).map((c) => <div className="evc-row" key={c.id}><div className="calendar-date"><b>{c.id.endsWith("148") ? "28" : "21"}</b><small>MAR</small></div><div className="evc-main"><b>{c.college}</b><small>{c.id} · {c.program}</small><div className="committee-line"><span className="avatar-stack"><i>MK</i><i>PN</i></span> {c.id.endsWith("148") ? "Committee assigned · visit to schedule" : "Committee · report due"}</div></div><div className="evc-status"><Status status={c.id.endsWith("119") ? "Overdue" : "Due soon"}/><small>{c.id.endsWith("119") ? "Report pending" : "Visit · 24 Mar 2025"}</small></div><button className="table-open" aria-label={`Open ${c.id}`} onClick={() => openCase(c.id, "routing")}><Icon name="arrow" size={15}/></button></div>)}</div>
+            <div className={`evc-queue ${tourFocus("evc")}`} id="evc-queue">{data.cases.filter((c) => c.evc && (c.stage.toLowerCase().includes("evc") || c.stage.toLowerCase().includes("inspection"))).map((c) => <div className="evc-row" key={c.id}><div className="calendar-date"><b>{c.id.endsWith("148") ? "28" : "21"}</b><small>MAR</small></div><div className="evc-main"><b>{c.college}</b><small>{c.id} · {c.program}</small><div className="committee-line"><span className="avatar-stack"><i>MK</i><i>PN</i></span> {c.id.endsWith("148") ? "Committee assigned · visit to schedule" : "Committee · report due"}</div></div><div className="evc-status"><Status status={c.id.endsWith("119") ? "Overdue" : "Due soon"}/><small>{c.id.endsWith("119") ? "Report pending" : "Visit · 24 Mar 2025"}</small></div><a className="evc-checklist-link" href={`/checklist?case=${encodeURIComponent(c.id)}`}>Visit checklist <Icon name="arrow" size={14}/></a><button className="table-open" aria-label={`Open ${c.id}`} onClick={() => openCase(c.id, "routing")}><Icon name="arrow" size={15}/></button></div>)}</div>
             <div className="section-title compact-title" id="visit-schedule"><div><h2>Scheduling overview</h2><span>Committee capacity and upcoming visits</span></div></div><div className="schedule-strip"><div><span className="schedule-day">MON <b>24</b></span><span><b>Northfield Institute</b><small>Site inspection · Committee A</small></span><Status status="Due soon"/></div><div><span className="schedule-day muted-day">WED <b>26</b></span><span><b>No visit scheduled</b><small>1 open committee slot</small></span><button className="text-action" onClick={() => setFlash("Choose an available date in the scheduling workspace")}>Schedule <Icon name="arrow" size={13}/></button></div></div>
           </>}
           {dashboard === "compliance" && <>
